@@ -32,7 +32,7 @@ class MyproxiesSpiderMiddleware(object):
             return request
 
         if response.status == 408 or response.status == 502 or response.status == 503 or response.status == 302:
-            # ip_pool.report_bad_net_ip(this_res_proxy)
+            ip_pool.report_bad_net_ip(this_res_proxy)
             request.meta['proxy'] = "http://" + ip_pool.get_ip()
             return request
         return response

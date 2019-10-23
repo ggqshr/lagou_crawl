@@ -22,6 +22,7 @@ class LgSpider(scrapy.Spider):
     fill_bizArea_url = "https://www.lagou.com/jobs/list_/p-city_{city}?px=new&district={district}&bizArea={bizArea}#filterBox"
     origin_url = "https://www.lagou.com/jobs/positionAjax.json?needAddtionalResult=false"
     get_cookies_url = "https://www.lagou.com/jobs/list_?labelWords=&fromSearch=true&suginput="
+    job_detail_url = "https://www.lagou.com/jobs/{id}.html"
     header_dict = {
         'Referer': 'https://www.lagou.com/jobs/list_python?labelWords=&fromSearch=true&suginput=',
         'Accept': 'application/json, text/javascript, */*; q=0.01',
@@ -70,7 +71,7 @@ class LgSpider(scrapy.Spider):
                     meta={"cookiejar": response.meta['cookiejar'], "page": pageNum},
                     method="POST",
                     headers=self.header_dict,
-                    priority=3,
+                    priority=4,
                     dont_filter=True
                 )
 
@@ -113,7 +114,7 @@ class LgSpider(scrapy.Spider):
                         meta={"cookiejar": response.meta['cookiejar'], "page": pageNum},
                         method="POST",
                         headers=self.header_dict,
-                        priority=3,
+                        priority=4,
                         dont_filter=True
                     )
 
@@ -154,11 +155,16 @@ class LgSpider(scrapy.Spider):
                         meta={"cookiejar": response.meta['cookiejar'], "page": pageNum},
                         method="POST",
                         headers=self.header_dict,
-                        priority=3,
+                        priority=4,
                         dont_filter=True
                     )
 
     def parse_bizArea(self, response):
+        """
+        经过前面的过滤，按照城市，分区，以及商圈爬取
+        :param response:
+        :return:
+        """
         this_city = response.meta['city']
         this_city_code = response.meta['city_code']
         this_district = response.meta['district']
@@ -175,7 +181,7 @@ class LgSpider(scrapy.Spider):
                     meta={"cookiejar": response.meta['cookiejar'], "page": pageNum},
                     method="POST",
                     headers=self.header_dict,
-                    priority=3,
+                    priority=4,
                     dont_filter=True
                 )
 
@@ -194,7 +200,7 @@ class LgSpider(scrapy.Spider):
                                      SelectJmes("result"))
             result_list = extract_result(response.text)
             for res in result_list:
-                loader = ItemLoader(item=LagouItem())
+                loader = LagouItemLoader(item=LagouItem())
                 loader.add_value("post_time", res)
                 loader.add_value("job_name", res)
                 loader.add_value("salary", res)
@@ -207,21 +213,44 @@ class LgSpider(scrapy.Spider):
                 loader.add_value("company_name", res)
                 loader.add_value("company_size", res)
                 loader.add_value("company_industry", res)
-                yield loader.load_item()
+                loader.add_value("id", res)
+                loader.add_value("link", self.job_detail_url.format(id=loader.get_output_value("id")))
+                this_item = loader.load_item()
+                yield this_item
+                # yield Request(
+                #     url=this_item.get("link"),
+                #     headers=self.header_dict,
+                #     meta={"cookiejar": uuid.uuid4(), "item": this_item},
+                #     callback=self.parse_other,
+                #     priority=5,
+                # )
         else:
+            # 若请求失败，则重新请求一个主页，获得cookies，然后再次发起请求
             key = uuid.uuid4()
             yield Request(url=self.get_cookies_url, callback=self.empty, meta={"cookiejar": key},
-                          headers=self.header_dict, priority=4, dont_filter=True)
+                          headers=self.header_dict, priority=5, dont_filter=True)
             yield FormRequest(
                 url=response.url,
                 formdata={"first": "true", "pn": str(response.meta['page']), 'kd': ""},
                 callback=self.parse,
-                meta={"cookiejar": key,"page":response.meta['page']},
+                meta={"cookiejar": key, "page": response.meta['page']},
                 method="POST",
                 headers=self.header_dict,
-                priority=3,
+                priority=4,
                 dont_filter=True
             )
+
+    def parse_other(self, response):
+        """
+        进入到工作对应的页面，爬取剩下的内容
+        :param response:
+        :return:
+        """
+        loader = LagouItemLoader(response=response, item=response.meta["item"])
+        loader.add_xpath("job_content", "string(//div[@class='job-detail'])")
+        loader.add_xpath("job_place", "string(//div[@class='work_addr'])")
+        loader.add_xpath("company_homepage", "(//h4[@class='c_feature_name'])[4]/../@href")
+        yield loader.load_item()
 
     def empty(self, response):
         pass

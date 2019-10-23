@@ -29,7 +29,7 @@ CONCURRENT_REQUESTS = 5
 # Configure a delay for requests for the same website (default: 0)
 # See https://docs.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-# DOWNLOAD_DELAY = 1
+DOWNLOAD_DELAY = 0.5
 # The download delay setting will honor only one of:
 # CONCURRENT_REQUESTS_PER_DOMAIN = 16
 # CONCURRENT_REQUESTS_PER_IP = 16
@@ -136,10 +136,10 @@ CITY_INFO = {"河池": 246, "洋浦市": 251, "宜春": 145, "张家界": 205, "
              "中山": 231, "防城港": 240, "运城": 26, "固原": 340, "达州": 266, "西宁": 329, "宿州": 122, "梅州": 225, "贺州": 245,
              "南平": 135, "新加坡": 359, "滨州": 163, "宜昌": 187, "西安": 298, "双鸭山": 61, "济宁": 155, "石河子": 212}
 
-apiUrl = "http://api.xdaili.cn/xdaili-api//greatRecharge/getGreatIp?spiderId=2eeedc14918546f087abcddafd5ee37d&orderno=YZ20196121637TQppQw&returnType=2&count=10"
-ip_pool = XunProxy(apiUrl)
+apiUrl = "http://api.xdaili.cn/xdaili-api//greatRecharge/getGreatIp?spiderId=2eeedc14918546f087abcddafd5ee37d&orderno=YZ20196121637TQppQw&returnType=2&count=5"
+ip_pool = XunProxy(apiUrl,max_count=150)
 RETRY_ENABLED = False
-DOWNLOAD_TIMEOUT = 15
+DOWNLOAD_TIMEOUT = 10
 
 FEED_FORMAT = "csv"
 FEED_URI="file://D:/Project/crawl_project/lagou_crawl/test.csv"
