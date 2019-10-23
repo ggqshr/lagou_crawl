@@ -4,8 +4,32 @@
 #
 # See documentation in:
 # https://docs.scrapy.org/en/latest/topics/spider-middleware.html
+import uuid
 
 from scrapy import signals
+from fake_useragent import UserAgent
+
+
+def random_cookie():
+    args = (uuid.uuid4(),) * 5
+    cookie = 'user_trace_token={}; LGUID={}; JSESSIONID={}; LGSID={}; LGRID={}'.format(*args)
+    return cookie
+
+
+class RandomCookiesMiddleware(object):
+    def __init__(self):
+        pass
+
+    def process_request(self, request, spider):
+        request.headers['Cookie'] = random_cookie()
+
+
+class RandomUAMiddleware(object):
+    def __init__(self):
+        self.user_agent = UserAgent().random
+
+    def process_request(self, request, spider):
+        request.headers['User-Agent'] = self.user_agent
 
 
 class LagouSpiderMiddleware(object):

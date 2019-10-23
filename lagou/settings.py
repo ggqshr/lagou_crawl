@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+from logging import INFO, DEBUG
+
+from proxy_pool import XunProxy
 
 # Scrapy settings for lagou project
 #
@@ -21,19 +24,18 @@ NEWSPIDER_MODULE = 'lagou.spiders'
 ROBOTSTXT_OBEY = False
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
-# CONCURRENT_REQUESTS = 32
+CONCURRENT_REQUESTS = 16
 
 # Configure a delay for requests for the same website (default: 0)
 # See https://docs.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-# DOWNLOAD_DELAY = 3
+DOWNLOAD_DELAY = 1
 # The download delay setting will honor only one of:
 # CONCURRENT_REQUESTS_PER_DOMAIN = 16
 # CONCURRENT_REQUESTS_PER_IP = 16
 
 # Disable cookies (enabled by default)
 COOKIES_ENABLED = True
-COOKIES_DEBIG = True
 
 # Disable Telnet Console (enabled by default)
 # TELNETCONSOLE_ENABLED = False
@@ -52,9 +54,13 @@ COOKIES_DEBIG = True
 
 # Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
-# DOWNLOADER_MIDDLEWARES = {
-#    'lagou.middlewares.LagouDownloaderMiddleware': 543,
-# }
+DOWNLOADER_MIDDLEWARES = {
+    # 'lagou.middlewares.LagouDownloaderMiddleware': 543,
+    'lagou.middlewares.LagouDownloaderMiddleware': 543,
+    # 'lagou.middlewares.RandomCookiesMiddleware': 542,
+    "lagou.MyproxiesSpiderMiddleware.MyproxiesSpiderMiddleware": 601,
+    'scrapy.downloadermiddlewares.redirect.RedirectMiddleware': None,
+}
 
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html
@@ -100,7 +106,7 @@ CITY_INFO = {"河池": 246, "洋浦市": 251, "宜春": 145, "张家界": 205, "
              "常德": 204, "洛阳": 169, "信阳": 181, "莆田": 130, "清远": 229, "张掖": 321, "北京": 2, "佛山": 218, "齐齐哈尔": 58,
              "宣城": 127, "嘉兴": 101, "秦皇岛": 10, "阿坝藏族羌族自治州": 270, "恩施土家族苗族自治州": 196, "汕尾": 226, "楚雄彝族自治州": 287, "思茅": 290,
              "台湾": 358, "眉山": 263, "抚州": 146, "德宏傣族景颇族自治州": 292, "阿克苏地区": 349, "景德镇": 138, "铜川": 299, "长春": 70,
-             "泰安": 156, "鞍山": 45, "海西蒙古族藏族自治州": 336, "澳门": 357, "阳江": 228, "商洛": 307,  "鹤岗": 60, "乌海": 33,
+             "泰安": 156, "鞍山": 45, "海西蒙古族藏族自治州": 336, "澳门": 357, "阳江": 228, "商洛": 307, "鹤岗": 60, "乌海": 33,
              "上海": 3, "吉林": 71, "沈阳": 44, "上饶": 147, "益阳": 206, "曲靖": 283, "博尔塔拉蒙古自治州": 347, "吉安": 144, "永州": 208,
              "常州": 87, "广元": 258, "巴中": 268, "昌都地区": 309, "克拉玛依": 343, "朝阳": 55, "新乡": 173, "海东地区": 330, "延边朝鲜族自治州": 78,
              "巢湖": 123, "临汾": 28, "蚌埠": 113, "南充": 262, "昆明": 282, "包头": 32, "临沂": 160, "渭南": 302, "赣州": 143, "聊城": 162,
@@ -128,4 +134,8 @@ CITY_INFO = {"河池": 246, "洋浦市": 251, "宜春": 145, "张家界": 205, "
              "玉树藏族自治州": 335, "大同": 20, "绵阳": 257, "兴安盟": 38, "靖江": 95, "陇南": 326, "衡水": 18, "呼伦贝尔": 37, "衡阳": 201,
              "台州": 107, "萍乡": 139, "鄂尔多斯": 36, "宿迁": 96, "镇江": 93, "揭阳": 233, "钦州": 241, "岳阳": 203, "泸州": 255, "松原": 76,
              "中山": 231, "防城港": 240, "运城": 26, "固原": 340, "达州": 266, "西宁": 329, "宿州": 122, "梅州": 225, "贺州": 245,
-             "南平": 135, "新加坡": 359, "滨州": 163, "宜昌": 187, "西安": 298, "双鸭山": 61, "济宁": 155, "石河子": 212};
+             "南平": 135, "新加坡": 359, "滨州": 163, "宜昌": 187, "西安": 298, "双鸭山": 61, "济宁": 155, "石河子": 212}
+
+apiUrl = "http://api.xdaili.cn/xdaili-api//greatRecharge/getGreatIp?spiderId=2eeedc14918546f087abcddafd5ee37d&orderno=YZ20196121637TQppQw&returnType=2&count=3"
+ip_pool = XunProxy(apiUrl)
+RETRY_ENABLED = False

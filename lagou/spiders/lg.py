@@ -12,9 +12,10 @@ class LgSpider(scrapy.Spider):
     name = 'lg'
     allowed_domains = ['lagou.com']
     fill_city_url = "https://www.lagou.com/jobs/list_/p-city_{city}?px=new&gx=&isSchoolJob=1#filterBox"
-    fill_district_url = "https://www.lagou.com/jobs/list_/p-city_{city}?px=new&gx=&isSchoolJob=1&district={district}}#filterBox"
+    fill_district_url = "https://www.lagou.com/jobs/list_/p-city_{city}?px=new&gx=&isSchoolJob=1&district={district}#filterBox"
     fill_bizArea_url = "https://www.lagou.com/jobs/list_/p-city_{city}?px=new&district={district}&bizArea={bizArea}#filterBox"
     origin_url = "https://www.lagou.com/jobs/positionAjax.json?needAddtionalResult=false"
+    get_cookies_url = "https://www.lagou.com/jobs/list_?labelWords=&fromSearch=true&suginput="
     header_dict = {
         'Referer': 'https://www.lagou.com/jobs/list_python?labelWords=&fromSearch=true&suginput=',
         'Accept': 'application/json, text/javascript, */*; q=0.01',
@@ -22,19 +23,19 @@ class LgSpider(scrapy.Spider):
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.120 Safari/537.36",
     }
 
-    def __init__(self, city_list, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, city_list, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.city_info = city_list
 
     @classmethod
     def from_crawler(cls, crawler, *args, **kwargs):
-        spider = cls(city_list=crawler.settings.get("CITY_INFO"))
+        spider = cls(city_list=crawler.settings.get("CITY_INFO"), *args, **kwargs)
+        spider._set_crawler(crawler)
         return spider
 
     def start_requests(self):
-        get_cookies_url = "https://www.lagou.com/jobs/list_?labelWords=&fromSearch=true&suginput="
-        yield Request(url=get_cookies_url, callback=self.parse_by_city, meta={"cookiejar": "lagou"},
-                      headers=self.header_dict, priority=4)
+        yield Request(url=self.get_cookies_url, callback=self.parse_by_city, meta={"cookiejar": "lagou"},
+                      headers=self.header_dict, priority=4, dont_filter=True)
 
     def parse_by_city(self, response):
         """
@@ -48,21 +49,25 @@ class LgSpider(scrapy.Spider):
             for city, code in self.city_info.items():
                 yield Request(
                     url=self.fill_city_url.format(city=code),
-                    meta={"city": city, "city_code": code, "cookiejar": "lagou"},
+                    meta={"city": city, "city_code": code, "cookiejar": "lagou1"},
                     headers=self.header_dict,
-                    callback=self.parse_by_district
+                    callback=self.parse_by_district,
+                    dont_filter=True
                 )
         else:
             # 直接抓取
             for pageNum in range(1, 31):
+                yield Request(url=self.get_cookies_url, callback=self.parse_by_city, meta={"cookiejar": "lagou"},
+                              headers=self.header_dict, priority=4, dont_filter=True)
                 yield FormRequest(
                     url=self.origin_url,
-                    formdata={"first": "true", "pn": pageNum, 'kd': ""},
+                    formdata={"first": "true", "pn": str(pageNum), 'kd': ""},
                     callback=self.parse,
                     meta={"cookiejar": "lagou"},
                     method="POST",
                     headers=self.header_dict,
-                    priority=3
+                    priority=3,
+                    dont_filter=True
                 )
 
     def parse_by_district(self, response):
@@ -76,16 +81,19 @@ class LgSpider(scrapy.Spider):
         this_city_code = response.meta['city_code']
         if num == '500+':
             # 遍历该城市所有的区
-            all_district: list = response.xpath("//div[@data-toggle-type='district']//a/text()").extract()
+            all_district: list = response.xpath("//div[@data-type='district']//a/text()").extract()
             if len(all_district) == 0:
                 all_district = response.xpath('//li[@data-toggle-type="district"]//a/text()').extract()
+            if len(all_district) == 0:
+                return
             all_district.remove("不限")
             for district in all_district:
                 yield Request(
                     url=self.fill_district_url.format(city=this_city_code, district=district),
-                    meta={"district": district, "city": this_city, "city_code": this_city_code, "cookiejar": "lagou"},
+                    meta={"district": district, "city": this_city, "city_code": this_city_code, "cookiejar": "lagou1"},
                     headers=self.header_dict,
-                    callback=self.parse_by_bizArea
+                    callback=self.parse_by_bizArea,
+                    dont_filter=True
                 )
         else:
             # 直接抓取
@@ -94,14 +102,17 @@ class LgSpider(scrapy.Spider):
                 pass
             else:
                 for pageNum in range(1, int(total_page_num) + 1):
+                    yield Request(url=self.get_cookies_url, callback=self.parse_by_city, meta={"cookiejar": "lagou"},
+                                  headers=self.header_dict, priority=4, dont_filter=True)
                     yield FormRequest(
                         url=self.origin_url + f"&city={quote(this_city)}",
-                        formdata={"first": "true", "pn": pageNum, 'kd': ""},
+                        formdata={"first": "true", "pn": str(pageNum), 'kd': ""},
                         callback=self.parse,
                         meta={"cookiejar": "lagou"},
                         method="POST",
                         headers=self.header_dict,
-                        priority=3
+                        priority=3,
+                        dont_filter=True
                     )
 
     def parse_by_bizArea(self, response):
@@ -122,25 +133,29 @@ class LgSpider(scrapy.Spider):
                 yield Request(
                     url=self.fill_bizArea_url.format(city=this_city_code, district=this_district, bizArea=bizArea),
                     meta={"bizArea": bizArea, "district": this_district, "city": this_city, "city_code": this_city_code,
-                          "cookiejar": "lagou"},
+                          "cookiejar": "lagou1"},
                     headers=self.header_dict,
-                    callback=self.parse_bizArea
+                    callback=self.parse_bizArea,
+                    dont_filter=True
                 )
         else:
             # 直接抓取
             total_page_num = response.xpath("//span[@class='span totalNum']/text()").extract_first()
-            if not total_page_num:
+            if not total_page_num or total_page_num=="0":
                 pass
             else:
                 for pageNum in range(1, int(total_page_num) + 1):
+                    yield Request(url=self.get_cookies_url, callback=self.parse_by_city, meta={"cookiejar": "lagou"},
+                                  headers=self.header_dict, priority=4, dont_filter=True)
                     yield FormRequest(
                         url=self.origin_url + f"&city={quote(this_city)}&district={this_district}",
-                        formdata={"first": "true", "pn": pageNum, 'kd': ""},
+                        formdata={"first": "true", "pn": str(pageNum), 'kd': ""},
                         callback=self.parse,
                         meta={"cookiejar": "lagou"},
                         method="POST",
                         headers=self.header_dict,
-                        priority=3
+                        priority=3,
+                        dont_filter=True
                     )
 
     def parse_bizArea(self, response):
@@ -153,14 +168,17 @@ class LgSpider(scrapy.Spider):
             pass
         else:
             for pageNum in range(1, int(total_page_num) + 1):
+                yield Request(url=self.get_cookies_url, callback=self.parse_by_city, meta={"cookiejar": "lagou"},
+                              headers=self.header_dict, priority=4, dont_filter=True)
                 yield FormRequest(
                     url=self.origin_url + f"&city={quote(this_city)}&district={this_district}&bizArea={this_biz_area}",
-                    formdata={"first": "true", "pn": pageNum, 'kd': ""},
+                    formdata={"first": "true", "pn": str(pageNum), 'kd': ""},
                     callback=self.parse,
                     meta={"cookiejar": "lagou"},
                     method="POST",
                     headers=self.header_dict,
-                    priority=3
+                    priority=3,
+                    dont_filter=True
                 )
 
     def parse(self, response):
