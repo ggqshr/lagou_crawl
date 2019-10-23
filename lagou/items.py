@@ -7,12 +7,13 @@
 
 import scrapy
 from scrapy.loader import ItemLoader
-from scrapy.loader.processors import SelectJmes, Compose, MapCompose
+from scrapy.loader.processors import SelectJmes, Compose, MapCompose, Identity, TakeFirst
 import json
 
 
 class LagouItemLoader(ItemLoader):
-    pass
+    default_output_processor = Identity()
+    default_int_processor = Identity()
 
 
 class LagouItem(scrapy.Item):
@@ -21,41 +22,41 @@ class LagouItem(scrapy.Item):
     link = scrapy.Field()  # url
     id = scrapy.Field()  # rloc
     post_time = scrapy.Field(
-        input_processor=SelectJmes("createTime"),
+        input_processor=Compose(TakeFirst(),SelectJmes("createTime")),
     )  # lastmod
     job_name = scrapy.Field(
-        input_processor=SelectJmes("positionName"),
+        input_processor=Compose(TakeFirst(),SelectJmes("positionName")),
     )  # title
     salary = scrapy.Field(
-        input_processor=SelectJmes("salary"),
+        input_processor=Compose(TakeFirst(),SelectJmes("salary")),
     )  # salary
     place = scrapy.Field(
-        input_processor=SelectJmes("city"),
+        input_processor=Compose(TakeFirst(),SelectJmes("city")),
     )  # city
     job_nature = scrapy.Field(
-        input_processor=SelectJmes("jobNature"),
+        input_processor=Compose(TakeFirst(),SelectJmes("jobNature")),
     )  # type
     experience = scrapy.Field(
-        input_processor=SelectJmes("workYear"),
+        input_processor=Compose(TakeFirst(),SelectJmes("workYear")),
     )  # experience
     education = scrapy.Field(
-        input_processor=SelectJmes("education"),
+        input_processor=Compose(TakeFirst(),SelectJmes("education")),
     )  # education
     # job_number = scrapy.Field()  # number
     job_kind = scrapy.Field(
-        input_processor=SelectJmes("firstType"),
+        input_processor=Compose(TakeFirst(),SelectJmes("firstType")),
     )  # jobsecondclass
     advantage = scrapy.Field(
-        input_processor=SelectJmes("positionAdvantage"),
+        input_processor=Compose(TakeFirst(),SelectJmes("positionAdvantage")),
     )  # ori_welfare
     company_name = scrapy.Field(
-        input_processor=SelectJmes("companyFullName"),
+        input_processor=Compose(TakeFirst(),SelectJmes("companyFullName")),
     )  # officialname
     company_size = scrapy.Field(
-        input_processor=SelectJmes("companySize"),
+        input_processor=Compose(TakeFirst(),SelectJmes("companySize")),
     )  # size
     company_industry = scrapy.Field(
-        input_processor=SelectJmes("industryField"),
+        input_processor=Compose(TakeFirst(),SelectJmes("industryField")),
     )  # industry
     company_address = scrapy.Field()  # companyaddress
     company_nature = scrapy.Field()  # employertype
