@@ -56,22 +56,9 @@ class LgSpider(scrapy.Spider):
             for city, code in self.city_info.items():
                 yield Request(
                     url=self.fill_city_url.format(city=code),
-                    meta={"city": city, "city_code": code, "cookiejar": code},
+                    meta={"city": city, "city_code": code, "cookiejar": uuid.uuid4()},
                     headers=self.header_dict,
                     callback=self.parse_by_district,
-                    dont_filter=True
-                )
-        else:
-            # 直接抓取
-            for pageNum in range(1, 31):
-                yield FormRequest(
-                    url=self.origin_url,
-                    formdata={"first": "true", "pn": str(pageNum), 'kd': ""},
-                    callback=self.parse,
-                    meta={"cookiejar": response.meta['cookiejar'], "page": pageNum},
-                    method="POST",
-                    headers=self.header_dict,
-                    priority=4,
                     dont_filter=True
                 )
 
@@ -95,7 +82,8 @@ class LgSpider(scrapy.Spider):
             for district in all_district:
                 yield Request(
                     url=self.fill_district_url.format(city=this_city_code, district=district),
-                    meta={"district": district, "city": this_city, "city_code": this_city_code, "cookiejar": district},
+                    meta={"district": district, "city": this_city, "city_code": this_city_code,
+                          "cookiejar": uuid.uuid4()},
                     headers=self.header_dict,
                     callback=self.parse_by_bizArea,
                     dont_filter=True
@@ -136,7 +124,7 @@ class LgSpider(scrapy.Spider):
                 yield Request(
                     url=self.fill_bizArea_url.format(city=this_city_code, district=this_district, bizArea=bizArea),
                     meta={"bizArea": bizArea, "district": this_district, "city": this_city, "city_code": this_city_code,
-                          "cookiejar": bizArea},
+                          "cookiejar": uuid.uuid4()},
                     headers=self.header_dict,
                     callback=self.parse_bizArea,
                     dont_filter=True

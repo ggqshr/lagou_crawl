@@ -1,4 +1,6 @@
+import uuid
 
+from scrapy import Request
 from scrapy.http import Response
 from twisted.internet.error import TCPTimedOutError, ConnectionRefusedError, TimeoutError, ConnectionLost
 from twisted.web.client import ResponseNeverReceived
@@ -19,7 +21,7 @@ class MyproxiesSpiderMiddleware(object):
     def process_request(self, request, spider):
         request.meta["proxy"] = "http://" + ip_pool.get_ip()
 
-    def process_response(self, request, response: Response, spider):
+    def process_response(self, request:Request, response: Response, spider):
         this_res_proxy = request.meta['proxy'].replace("http://", "")
         # 用来输出状态码
         if response.status != 200:
@@ -32,7 +34,9 @@ class MyproxiesSpiderMiddleware(object):
             return request
 
         if response.status == 408 or response.status == 502 or response.status == 503 or response.status == 302:
-            ip_pool.report_bad_net_ip(this_res_proxy)
+            # ip_pool.report_bad_net_ip(this_res_proxy)
+            # if "list_?" in request.url:
+            #     request.meta['cookiejar'] = uuid.uuid4()
             request.meta['proxy'] = "http://" + ip_pool.get_ip()
             return request
         return response
