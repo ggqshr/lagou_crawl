@@ -7,62 +7,65 @@
 
 import scrapy
 from scrapy.loader import ItemLoader
-from scrapy.loader.processors import SelectJmes, Compose, MapCompose
+from scrapy.loader.processors import SelectJmes, Compose, MapCompose, TakeFirst
 import json
 
 
 class LagouItemLoader(ItemLoader):
-    pass
+    default_output_processor = TakeFirst()
+
+
+link_format_url = "https://www.lagou.com/jobs/{}.html"
 
 
 class LagouItem(scrapy.Item):
     # define the fields for your item here like:
     # name = scrapy.Field()
-    link = scrapy.Field()  # url
-    id = scrapy.Field()  # rloc
+    link = scrapy.Field(
+        input_processor=MapCompose(SelectJmes('positionId'), lambda x: link_format_url.format(x))
+    )  # url
+    id = scrapy.Field(
+        input_processor=Compose(TakeFirst(), SelectJmes('positionId')),
+    )  # rloc
     post_time = scrapy.Field(
-        input_processor=SelectJmes("createTime"),
+        input_processor=MapCompose(SelectJmes("createTime"), lambda x: x.split(" ")[0])
     )  # lastmod
     job_name = scrapy.Field(
-        input_processor=SelectJmes("positionName"),
+        input_processor=Compose(TakeFirst(), SelectJmes("positionName")),
     )  # title
     salary = scrapy.Field(
-        input_processor=SelectJmes("salary"),
+        input_processor=Compose(TakeFirst(), SelectJmes("salary")),
     )  # salary
     place = scrapy.Field(
-        input_processor=SelectJmes("city"),
+        input_processor=Compose(TakeFirst(), SelectJmes("city")),
     )  # city
     job_nature = scrapy.Field(
-        input_processor=SelectJmes("jobNature"),
+        input_processor=Compose(TakeFirst(), SelectJmes("jobNature")),
     )  # type
     experience = scrapy.Field(
-        input_processor=SelectJmes("workYear"),
+        input_processor=Compose(TakeFirst(), SelectJmes("workYear")),
     )  # experience
     education = scrapy.Field(
-        input_processor=SelectJmes("education"),
+        input_processor=Compose(TakeFirst(), SelectJmes("education")),
     )  # education
     # job_number = scrapy.Field()  # number
     job_kind = scrapy.Field(
-        input_processor=SelectJmes("firstType"),
+        input_processor=Compose(TakeFirst(), SelectJmes("firstType")),
     )  # jobsecondclass
     advantage = scrapy.Field(
-        input_processor=SelectJmes("positionAdvantage"),
+        input_processor=Compose(TakeFirst(), SelectJmes("positionAdvantage")),
     )  # ori_welfare
     company_name = scrapy.Field(
-        input_processor=SelectJmes("companyFullName"),
+        input_processor=Compose(TakeFirst(), SelectJmes("companyFullName")),
     )  # officialname
     company_size = scrapy.Field(
-        input_processor=SelectJmes("companySize"),
+        input_processor=Compose(TakeFirst(), SelectJmes("companySize")),
     )  # size
     company_industry = scrapy.Field(
-        input_processor=SelectJmes("industryField"),
+        input_processor=Compose(TakeFirst(), SelectJmes("industryField")),
     )  # industry
     company_address = scrapy.Field()  # companyaddress
     company_nature = scrapy.Field()  # employertype
     job_content = scrapy.Field()
     job_place = scrapy.Field()
     # company_homepage = scrapy.Field()  # official
-    hot_score = scrapy.Field()  # 百度对于本条招聘信息的热度评分  hot_score
-    job_safety_score = scrapy.Field()  # 百度对于招聘信息的安全评分  job_safety_score
-    company_reputation_score = scrapy.Field()  # 百度对于招聘公司的声誉评分 company_reputation_score
-    salary_level_score = scrapy.Field()  # 对于薪水评分  salary_level_score
