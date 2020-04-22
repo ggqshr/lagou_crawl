@@ -9,6 +9,9 @@ import scrapy
 from scrapy.loader import ItemLoader
 from scrapy.loader.processors import SelectJmes, Compose, MapCompose, TakeFirst
 import json
+import re
+
+regSpace = re.compile(r'([\s\r\n\t])+')
 
 
 class LagouItemLoader(ItemLoader):
@@ -64,8 +67,14 @@ class LagouItem(scrapy.Item):
     company_industry = scrapy.Field(
         input_processor=Compose(TakeFirst(), SelectJmes("industryField")),
     )  # industry
-    company_address = scrapy.Field()  # companyaddress
+    company_address = scrapy.Field(
+        input_processor=Compose(TakeFirst(), lambda x: re.sub(regSpace, "", x))
+    )  # companyaddress
     company_nature = scrapy.Field()  # employertype
-    job_content = scrapy.Field()
-    job_place = scrapy.Field()
+    job_content = scrapy.Field(
+        input_processor=Compose(TakeFirst(), lambda x: re.sub(regSpace, "", x))
+    )
+    job_place = scrapy.Field(
+        input_processor=Compose(TakeFirst(), lambda x: re.sub(regSpace, "", x), lambda x: x.replace('查看地图', ""))
+    )
     # company_homepage = scrapy.Field()  # official

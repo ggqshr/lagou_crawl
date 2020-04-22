@@ -4,8 +4,10 @@
 #
 # See documentation in:
 # https://docs.scrapy.org/en/latest/topics/spider-middleware.html
+import json
 
-from scrapy import signals
+from scrapy import signals, Request
+from fake_useragent import UserAgent
 
 
 class LagouSpiderMiddleware(object):
@@ -64,9 +66,12 @@ class LagouDownloaderMiddleware(object):
     @classmethod
     def from_crawler(cls, crawler):
         # This method is used by Scrapy to create your spiders.
-        s = cls()
+        s = cls(ua=UserAgent())
         crawler.signals.connect(s.spider_opened, signal=signals.spider_opened)
         return s
+
+    def __init__(self, ua):
+        self.fua = ua
 
     def process_request(self, request, spider):
         # Called for each request that goes through the downloader
@@ -78,9 +83,39 @@ class LagouDownloaderMiddleware(object):
         # - or return a Request object
         # - or raise IgnoreRequest: process_exception() methods of
         #   installed downloader middleware will be called
-        return None
+        request.headers['User-Agent'] = self.fua.random
 
-    def process_response(self, request, response, spider):
+    def process_response(self, request: Request, response, spider):
+        # todo 判断为何种类型的请求，如果为刷新cookies的请求，就重新请求，
+        #  如果为请求的数据的请求，就先重新请求referer，然后重新请求之前的请求
+        if response.status == 302:
+            request.headers.pop('Cookie', None)  # 清空cookies
+            if request.meta.get("is_get_cookie_url", False):  # 如果为请求cookies的请求，就直接重新请求
+                spider.logger.debug(f'302 error get cookies url {response.url}')
+                return request
+            if request.meta.get('is_other_url', False):
+                spider.logger.debug(f'302 error get other url {response.url}')
+                return request
+
+        if request.meta.get("is_get_data_url", False) and len(response.text) != 0:
+            res_content = json.loads(response.text)
+            is_success = res_content.get("success", False)
+            if not is_success:
+                spider.logger.debug(f'cookies out of date get data url {response.url}')
+                refresh_referer_url = request.meta.get("referer_url")
+                req = Request(
+                    url=refresh_referer_url,
+                    meta=request.meta,
+                    priority=request.priority,
+                    cb_kwargs=request.cb_kwargs,
+                    callback=request.callback,
+                    headers=request.headers,
+                )
+                req.meta['re_request_url'] = request  # 设置标志，回调时重新请求
+                req.meta['is_get_cookie_url'] = True  # 补上标志
+                req.headers.pop('Cookie', None)  # 清空cookies
+                return req
+
         # Called with the response returned from the downloader.
 
         # Must either;

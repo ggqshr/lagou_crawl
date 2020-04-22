@@ -8,6 +8,11 @@
 #     https://docs.scrapy.org/en/latest/topics/settings.html
 #     https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
+import logging
+import os
+from logging.handlers import TimedRotatingFileHandler
+
+from scrapy.utils.log import configure_logging
 
 BOT_NAME = 'lagou'
 
@@ -26,14 +31,14 @@ ROBOTSTXT_OBEY = False
 # Configure a delay for requests for the same website (default: 0)
 # See https://docs.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-DOWNLOAD_DELAY = 2
+DOWNLOAD_DELAY = 0.5
 # The download delay setting will honor only one of:
 # CONCURRENT_REQUESTS_PER_DOMAIN = 16
 # CONCURRENT_REQUESTS_PER_IP = 16
 
 # Disable cookies (enabled by default)
 COOKIES_ENABLED = True
-COOKIES_DEBUG = True
+# COOKIES_DEBUG = True
 
 # Disable Telnet Console (enabled by default)
 # TELNETCONSOLE_ENABLED = False
@@ -52,21 +57,22 @@ COOKIES_DEBUG = True
 
 # Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
-# DOWNLOADER_MIDDLEWARES = {
-#    'lagou.middlewares.LagouDownloaderMiddleware': 543,
-# }
+DOWNLOADER_MIDDLEWARES = {
+    'lagou.middlewares.LagouDownloaderMiddleware': 543,
+}
 
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html
-# EXTENSIONS = {
-#    'scrapy.extensions.telnet.TelnetConsole': None,
-# }
+EXTENSIONS = {
+    'scrapy.extensions.telnet.TelnetConsole': None,
+    'lagou.entension.send_mail.SendMail': 500,
+}
 
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
-# ITEM_PIPELINES = {
-#    'lagou.pipelines.LagouPipeline': 300,
-# }
+ITEM_PIPELINES = {
+    'lagou.pipelines.LagouPipeline': 300,
+}
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html
@@ -130,5 +136,37 @@ CITY_INFO = {"河池": 246, "洋浦市": 251, "宜春": 145, "张家界": 205, "
              "中山": 231, "防城港": 240, "运城": 26, "固原": 340, "达州": 266, "西宁": 329, "宿州": 122, "梅州": 225, "贺州": 245,
              "南平": 135, "新加坡": 359, "滨州": 163, "宜昌": 187, "西安": 298, "双鸭山": 61, "济宁": 155, "石河子": 212};
 
-FEED_FORMAT = "csv"
-FEED_URI = './test.csv'
+# FEED_FORMAT = "csv"
+# FEED_URI = './test.csv'
+
+if not os.path.exists("./logs"):
+    os.mkdir('./logs')
+
+configure_logging(install_root_handler=False)
+logging.basicConfig(
+    level=logging.DEBUG,
+    handlers=[
+        TimedRotatingFileHandler(filename='logs/Lagou.log', encoding='utf-8', when="D", interval=1)],
+    format='%(asctime)s %(filename)s [line:%(lineno)d] %(levelname)s %(message)s',
+    datefmt='%a, %d %b %Y %H:%M:%S',
+)
+
+LOG_LEVEL = logging.INFO
+
+REDIS_HOST = "47.94.45.55"
+REDIS_PORT = 9879
+
+MONGODB_USER = "jason#619"
+MONGODB_PASSWORD = "jason#619"
+
+MONGODB_HOST = "47.94.45.55"
+MONGODB_PORT = 9878
+
+MODE = 'YAO'
+
+# 和邮件相关
+MYEXT_ENABLED = True
+MAIL_HOST = 'smtp.qq.com'
+MAIL_PORT = 465
+MAIL_USER = '942490944@qq.com'
+MAIL_PASS = 'ijmbixectujobeei'
