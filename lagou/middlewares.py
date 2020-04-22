@@ -113,6 +113,7 @@ class LagouDownloaderMiddleware(object):
                 )
                 req.meta['re_request_url'] = request  # 设置标志，回调时重新请求
                 req.meta['is_get_cookie_url'] = True  # 补上标志
+                req.meta['is_get_data_url'] = False  # 将标志取消
                 req.headers.pop('Cookie', None)  # 清空cookies
                 return req
 
