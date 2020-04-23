@@ -13,15 +13,53 @@ from lagou.items import LagouItemLoader, LagouItem
 from scrapy.loader.processors import SelectJmes, Compose, MapCompose
 
 COOKIEJARSTR = 'cookiejar'
-COOKIEFLAG = "{flag}_{number}"
+
+
+def get_cookies_flag(*args):
+    """
+    用来生成统一的cookies标识的方法
+    :param args:
+    :return:
+    """
+    return "_".join([str(s) for s in args])
+
+
+def get_page_job_number(response):
+    """
+    提取页面的工作数目
+    :param response:
+    :return:
+    """
+    return response.xpath("//a[@id='tab_pos']/span/text()").extract_first()
+
+
+def append_key_word_to_url(url: str, args: dict) -> str:
+    """
+    在url后追加查询参数
+    :param url:
+    :param args:
+    :return:
+    """
+    for k, v in args.items():
+        url = url + f'&{k}={v}'
+    return url
+
+
+def quote_all_values_in_dict(args: dict) -> dict:
+    """
+    将字典的所有value使用quote函数进行编码
+    :param args:
+    :return:
+    """
+    return {k: quote(v) for k, v in args.items()}
 
 
 class LgSpider(scrapy.Spider):
     handle_httpstatus_list = [301, 302]
     name = 'lg'
-    allowed_domains = ['lagou.com']
+    allowed_domains = ['lagou.com', 'baidu.com']
     fill_city_url = "https://www.lagou.com/jobs/list_/p-city_{city}?px=default"
-    fill_data_url = 'https://www.lagou.com/jobs/positionAjax.json?px=default&city={city}&needAddtionalResult=false'
+    fill_data_url = 'https://www.lagou.com/jobs/positionAjax.json?px=default&needAddtionalResult=false'
 
     def start_requests(self):
         all_city = self.settings.get("CITY_INFO")
@@ -31,22 +69,62 @@ class LgSpider(scrapy.Spider):
             yield Request(
                 url=this_url,
                 meta={
-                    'cookiejar': COOKIEFLAG.format(flag=city, number=code),
+                    'cookiejar': get_cookies_flag(city, code),
                     'referer_url': this_url,
                     'is_get_cookie_url': True,
                 },
-                cb_kwargs={'city': city},
+                cb_kwargs={
+                    'area_args': {
+                        'city': city,
+                    },
+                },
                 priority=1,
-                callback=self.parse_first_level,
+                callback=self.parse_by_district,
                 dont_filter=True,
             )
 
-    def parse_first_level(self, response: Response, city):
+    def parse_by_district(self, response: Response, area_args):
+        num = get_page_job_number(response)
+        if num == '500+':
+            all_district: list = response.xpath("//div[@data-type='district']//a/text()").extract()
+            if len(all_district) == 0:
+                all_district = response.xpath('//li[@data-toggle-type="district"]//a/text()').extract()
+            if '不限' in all_district:
+                all_district.remove("不限")
+            for district in all_district:
+                this_url = append_key_word_to_url(response.url, {'district': quote(district)})
+                this_dict = dict(area_args)
+                this_dict.update({'district': district})
+                yield Request(
+                    url=this_url,
+                    meta={
+                        'cookiejar': get_cookies_flag(response.meta.get('cookiejar'), district),
+                        'referer_url': this_url,
+                        'is_get_cookie_url': True,
+                    },
+                    cb_kwargs={'area_args': this_dict},
+                    priority=2,
+                    callback=self.parse_first_level,
+                    dont_filter=True,
+                )
+        else:
+            this_meta = dict(response.meta) # 直接调用parse_first_level
+            this_meta.update({'DONT_DOWNLOAD': True, 'origin_response': response, 'origin_request': response.request})
+            yield Request(
+                url="http://baidu.com",
+                meta=this_meta,
+                priority=5,
+                cb_kwargs={'area_args': area_args},
+                callback=self.parse_first_level,
+            )
+
+    def parse_first_level(self, response: Response, area_args):
         re_req = self.process_re_request(response)
         if re_req is not None:
             yield re_req
             return
-        this_req_url = self.fill_data_url.format(city=quote(city))
+
+        this_req_url = append_key_word_to_url(self.fill_data_url, quote_all_values_in_dict(area_args))
         this_req_data = {
             "first": "true",
             "pn": str(1),
@@ -61,18 +139,18 @@ class LgSpider(scrapy.Spider):
             },
             priority=5,
             formdata=this_req_data,
-            cb_kwargs={'city': city, 'current_page': 1},
+            cb_kwargs={'area_args': area_args, 'current_page': 1},
             callback=self.parse_second_level
         )
 
-    def parse_second_level(self, response, city, current_page):
+    def parse_second_level(self, response, area_args, current_page):
         re_req = self.process_re_request(response)
         if re_req is not None:
             yield re_req
             return
         this_req_url = response.url
         current_page += 1
-        self.logger.debug(f'process {city} {current_page} pages')
+        self.logger.debug(f'process {" ".join(area_args.values())} {current_page} pages')
         this_req_data = {
             "first": "false",
             "pn": str(current_page),
@@ -82,7 +160,7 @@ class LgSpider(scrapy.Spider):
         this_position_data = this_content.get('content').get('positionResult')
         this_size = this_position_data.get('resultSize')
         if str(this_size) == '0':  # 如果当前页已经没有数据了，就停止请求下一页
-            self.logger.debug(f'{city} {current_page} has null data, finish crawl')
+            self.logger.debug(f'{area_args.get("city")} {current_page} has null data, finish crawl')
             return
         this_result: list = this_position_data.get('result')
         for position_info in this_result:
@@ -101,16 +179,16 @@ class LgSpider(scrapy.Spider):
             loader.add_value('company_name', position_info)
             loader.add_value('company_size', position_info)
             loader.add_value('company_industry', position_info)
-            yield Request(
-                url=loader.get_output_value('link'),
-                priority=7,
-                headers={'Referer': response.meta.get('referer_url')},
-                meta={'dont_merge_cookies': True, 'is_other_url': True},  # 不使用cookies
-                cb_kwargs={'loader': loader},
-                callback=self.parse_other,
-                dont_filter=True,
-            )
-            # yield loader.load_item()
+            # yield Request(
+            #     url=loader.get_output_value('link'),
+            #     priority=7,
+            #     headers={'Referer': response.meta.get('referer_url')},
+            #     meta={'dont_merge_cookies': True, 'is_other_url': True},  # 不使用cookies
+            #     cb_kwargs={'loader': loader},
+            #     callback=self.parse_other,
+            #     dont_filter=True,
+            # )
+            yield loader.load_item()
         yield FormRequest(
             url=this_req_url,
             formdata=this_req_data,
@@ -120,7 +198,7 @@ class LgSpider(scrapy.Spider):
                 'referer_url': response.meta.get('referer_url'),
                 'is_get_data_url': True,
             },
-            cb_kwargs={'city': city, 'current_page': current_page},
+            cb_kwargs={'area_args': area_args, 'current_page': current_page},
             priority=6,
             callback=self.parse_second_level,
         )

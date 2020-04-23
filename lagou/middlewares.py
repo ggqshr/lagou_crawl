@@ -58,6 +58,30 @@ class LagouSpiderMiddleware(object):
         spider.logger.info('Spider opened: %s' % spider.name)
 
 
+class DontDownloadMiddleware(object):
+    @classmethod
+    def from_crawler(cls, crawler):
+        # This method is used by Scrapy to create your spiders.
+        s = cls()
+        crawler.signals.connect(s.spider_opened, signal=signals.spider_opened)
+        return s
+
+    def process_request(self, request, spider):
+        """
+        如果有标志，就不下载，直接返回response，
+        :param request:
+        :param spider:
+        :return:
+        """
+        if request.meta.get("DONT_DOWNLOAD", False):
+            spider.logger.debug(f"direct return response {request.meta.get('origin_response').url}")
+            res = request.meta.get("origin_response")
+            return res
+
+    def spider_opened(self, spider):
+        spider.logger.info('Dont download middleware enable')
+
+
 class LagouDownloaderMiddleware(object):
     # Not all methods need to be defined. If a method is not defined,
     # scrapy acts as if the downloader middleware does not modify the
@@ -88,6 +112,9 @@ class LagouDownloaderMiddleware(object):
     def process_response(self, request: Request, response, spider):
         # todo 判断为何种类型的请求，如果为刷新cookies的请求，就重新请求，
         #  如果为请求的数据的请求，就先重新请求referer，然后重新请求之前的请求
+        if request.meta.get("DONT_DOWNLOAD", False):
+            return response
+
         if response.status == 302:
             request.headers.pop('Cookie', None)  # 清空cookies
             if request.meta.get("is_get_cookie_url", False):  # 如果为请求cookies的请求，就直接重新请求
