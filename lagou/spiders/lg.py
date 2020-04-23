@@ -160,6 +160,7 @@ class LgSpider(scrapy.Spider):
             "pn": str(1),
             'kd': "",
         }
+        self.logger.debug(f'start to process {" ".join(area_args.values())}')
         yield FormRequest(
             url=this_req_url,
             meta={
@@ -190,7 +191,7 @@ class LgSpider(scrapy.Spider):
         this_position_data = this_content.get('content').get('positionResult')
         this_size = this_position_data.get('resultSize')
         if str(this_size) == '0':  # 如果当前页已经没有数据了，就停止请求下一页
-            self.logger.debug(f'{area_args.get("city")} {current_page} has null data, finish crawl')
+            self.logger.debug(f'{" ".join(area_args.values())} {current_page} has null data, finish crawl')
             return
         this_result: list = this_position_data.get('result')
         for position_info in this_result:
