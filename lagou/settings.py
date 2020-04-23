@@ -171,3 +171,5 @@ MAIL_HOST = 'smtp.qq.com'
 MAIL_PORT = 465
 MAIL_USER = '942490944@qq.com'
 MAIL_PASS = 'ijmbixectujobeei'
+
+EDUCATION_LEVEL = ['大专', '本科', '博士', '硕士', '不要求']

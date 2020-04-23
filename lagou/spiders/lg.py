@@ -40,7 +40,7 @@ def append_key_word_to_url(url: str, args: dict) -> str:
     :param args:
     :return:
     """
-    for k, v in args.items():
+    for k, v in quote_all_values_in_dict(args).items():
         url = url + f'&{k}={v}'
     return url
 
@@ -92,7 +92,7 @@ class LgSpider(scrapy.Spider):
             if '不限' in all_district:
                 all_district.remove("不限")
             for district in all_district:
-                this_url = append_key_word_to_url(response.url, {'district': quote(district)})
+                this_url = append_key_word_to_url(response.url, {'district': district})
                 this_dict = dict(area_args)
                 this_dict.update({'district': district})
                 yield Request(
@@ -104,16 +104,46 @@ class LgSpider(scrapy.Spider):
                     },
                     cb_kwargs={'area_args': this_dict},
                     priority=2,
-                    callback=self.parse_first_level,
+                    callback=self.parse_by_education,
                     dont_filter=True,
                 )
         else:
-            this_meta = dict(response.meta) # 直接调用parse_first_level
+            this_meta = dict(response.meta)  # 直接调用parse_first_level
             this_meta.update({'DONT_DOWNLOAD': True, 'origin_response': response, 'origin_request': response.request})
             yield Request(
                 url="http://baidu.com",
                 meta=this_meta,
-                priority=5,
+                priority=3,
+                cb_kwargs={'area_args': area_args},
+                callback=self.parse_first_level,
+            )
+
+    def parse_by_education(self, response, area_args):
+        num = get_page_job_number(response)
+        if num == '500+':
+            for edu in self.settings.get('EDUCATION_LEVEL'):
+                this_url = append_key_word_to_url(response.url, {'xl': edu})  # 将参数拼接到url后
+                this_dict = dict(area_args)
+                this_dict.update({'xl': edu})  # 更新参数
+                yield Request(
+                    url=this_url,
+                    meta={
+                        'cookiejar': get_cookies_flag(response.meta.get('cookiejar'), edu),
+                        'referer_url': this_url,
+                        'is_get_cookie_url': True,
+                    },
+                    cb_kwargs={'area_args': this_dict},
+                    priority=2,
+                    callback=self.parse_first_level,
+                    dont_filter=True,
+                )
+        else:
+            this_meta = dict(response.meta)  # 直接调用parse_first_level
+            this_meta.update({'DONT_DOWNLOAD': True, 'origin_response': response, 'origin_request': response.request})
+            yield Request(
+                url="http://baidu.com",
+                meta=this_meta,
+                priority=3,
                 cb_kwargs={'area_args': area_args},
                 callback=self.parse_first_level,
             )
@@ -124,7 +154,7 @@ class LgSpider(scrapy.Spider):
             yield re_req
             return
 
-        this_req_url = append_key_word_to_url(self.fill_data_url, quote_all_values_in_dict(area_args))
+        this_req_url = append_key_word_to_url(self.fill_data_url, area_args)
         this_req_data = {
             "first": "true",
             "pn": str(1),
