@@ -19,5 +19,6 @@ class LagouPipeline(object):
         self.mongo = self.conn.Lagou.Lagou
 
     def process_item(self, item, spider):
+        item['job_place'] = item['place']
         self.mongo.insert_one(dict(item))
         return item
